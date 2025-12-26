@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A Letter for You</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&display=swap");
+
+      :root {
+        --paper-color: #fcfbf7;
+        --envelope-color: #eaddcf;
+        --envelope-shadow: #d3c4b5;
+        --text-color: #2c2c2c;
+      }
+
+      body {
+        font-family: "Cormorant Garamond", serif;
+        background-color: #f0f0f0; /* Fallback */
+        /*background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E"),
+          linear-gradient(to bottom, #e0e0e0, #cfcfcf);*/
+        background-image: url("sorry.jpg");
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* --- Envelope Styles --- */
+      .envelope-container {
+        position: relative;
+        width: 300px;
+        height: 200px;
+        cursor: pointer;
+        transition: transform 0.5s ease;
+        z-index: 10;
+      }
+
+      /* Hover effect only works when not open */
+      .envelope-container:not(.open):hover {
+        transform: translateY(-2px);
+      }
+
+      /* Stop transform when open so fixed position child works reliably */
+      .envelope-container.open {
+        cursor: default;
+        transform: none !important;
+      }
+
+      .envelope-body {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--envelope-color);
+        border-radius: 0 0 5px 5px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+        overflow: hidden;
+      }
+
+      /* The triangular flaps */
+      .flap {
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        z-index: 2;
+      }
+
+      .flap.left {
+        border-width: 100px 0 100px 150px;
+        border-color: transparent transparent transparent var(--envelope-shadow);
+        top: 0;
+        left: 0;
+      }
+
+      .flap.right {
+        border-width: 100px 150px 100px 0;
+        border-color: transparent var(--envelope-shadow) transparent transparent;
+        top: 0;
+        right: 0;
+      }
+
+      .flap.bottom {
+        border-width: 0 150px 110px 150px;
+        border-color: transparent transparent var(--envelope-color) transparent;
+        bottom: 0;
+        left: 0;
+        z-index: 3;
+      }
+
+      .flap.top {
+        border-width: 110px 150px 0 150px;
+        border-color: var(--envelope-color) transparent transparent transparent;
+        top: 0;
+        left: 0;
+        transform-origin: top;
+        transition: transform 0.6s 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+          z-index 0.2s;
+        z-index: 4;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.1));
+      }
+
+      /* Wax Seal */
+      .seal {
+        position: absolute;
+        top: 100px;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        background: #8b3a3a;
+        border-radius: 50%;
+        z-index: 5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        border: 2px solid #a64d4d;
+        transition: transform 0.3s ease, opacity 0.5s;
+      }
+
+      .seal i {
+        color: #d88e8e;
+        font-size: 18px;
+      }
+
+      /* Open State for Envelope */
+      .envelope-container.open .flap.top {
+        transform: rotateX(180deg);
+        z-index: 0;
+      }
+
+      .envelope-container.open .seal {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+        pointer-events: none;
+      }
+
+      /* --- Letter Styles --- */
+      .letter {
+        position: absolute;
+        bottom: 0;
+        left: 15px;
+        width: 270px;
+        height: 180px;
+        background-color: var(--paper-color);
+        transition: all 1s ease-in-out;
+        z-index: 1; /* Starts inside envelope behind flaps */
+        padding: 20px;
+        box-sizing: border-box;
+        opacity: 0;
+        transform: translateY(20px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+      }
+
+      .letter.pulled {
+        /* Stage 1: Slide out */
+        bottom: 120px;
+        opacity: 1;
+        z-index: 2; /* Moves in front of envelope bottom */
+        transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .letter.read-mode {
+        /* Stage 2: Full screen reading */
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        max-width: 600px;
+        height: 80vh;
+        max-height: 800px;
+        background-color: var(--paper-color);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 40px;
+        overflow-y: auto;
+        border-radius: 4px;
+        transition: all 1s ease;
+      }
+
+      /* Paper texture overlay for the letter */
+      .letter::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      /* Text Styles */
+      .content-container {
+        width: 100%;
+        height: 100%;
+        opacity: 0; /* Hidden initially */
+        display: flex;
+        flex-direction: column;
+      }
+
+      .letter.read-mode .content-container {
+        opacity: 1;
+        transition: opacity 0.8s 0.8s; /* Start fading in slightly earlier */
+      }
+
+      .paragraph {
+        font-size: 1.15rem; /* Slightly smaller for longer text */
+        line-height: 1.6;
+        color: var(--text-color);
+        margin-bottom: 1.2rem;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 1s, transform 1s;
+      }
+
+      .paragraph.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .signature {
+        font-family: "Great Vibes", cursive;
+        font-size: 2rem;
+        margin-top: 2rem;
+        text-align: right;
+        opacity: 0;
+        transition: opacity 2s;
+        margin-bottom: 4rem; /* Extra space at bottom for scrolling */
+      }
+
+      .signature.visible {
+        opacity: 1;
+      }
+
+      .close-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: #999;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+
+      .letter.read-mode:hover .close-btn {
+        opacity: 1;
+      }
+
+      /* Instructions overlay */
+      .instruction {
+        position: absolute;
+        bottom: -40px;
+        width: 100%;
+        text-align: center;
+        color: #666;
+        font-size: 0.9rem;
+        opacity: 0;
+        animation: fadeIn 2s 1s forwards;
+        transition: opacity 0.5s;
+      }
+
+      @keyframes fadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+
+      /* Mobile adjustments */
+      @media (max-width: 600px) {
+        .letter.read-mode {
+          width: 92vw;
+          height: 85vh;
+          padding: 25px;
+        }
+        .paragraph {
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="envelope-container" id="envelope">
+      <div class="envelope-body"></div>
+      <div class="flap left"></div>
+      <div class="flap right"></div>
+      <div class="flap bottom"></div>
+      <div class="letter" id="letter">
+        <div class="content-container">
+          <div class="close-btn" onclick="resetLetter()">
+            <i class="fas fa-times"></i>
+          </div>
+
+          <div id="text-content">
+            <!-- Sender Info -->
+            <div
+              class="paragraph"
+              style="
+                text-align: right;
+                font-size: 0.9em;
+                margin-bottom: 2rem;
+                font-style: italic;
+              "
+            >
+              The indisputable idiot who hurt you.<br />
+              Your Heart 💖(hopefully still 😭😭)<br />
+              ILU💖@gmail.com
+              <span style="font-size: 0.8em"
+                >(emil aint real but my feelings are &lt;3)</span
+              >
+            </div>
+
+            <!-- Date & Recipient -->
+            <div
+              class="paragraph"
+              style="text-align: left; margin-bottom: 2rem"
+            >
+              26 December 2025<br /><br />
+              <strong>My precious Girl, Ayura Yadav💖💖</strong><br />
+              CEO, Athang’s Heart hegemony (ye wali apne kar rakhi hai),<br />
+              Currently situated in your hands (Please don’t break it🙏🙏)<br />
+              Noida.
+            </div>
+
+            <!-- Salutation -->
+            <p class="paragraph">Dear Ms. Capricious⚛️, Divine🌟, Goddess⭐,</p>
+
+            <!-- Body -->
+            <p class="paragraph">
+              I am writing this letter with much grief and guilt in my heart
+              with tears in my eyes (like a lil bit, really not kidding) and a
+              mind that is reeling over the realization of how much I have hurt
+              you.
+            </p>
+
+            <p class="paragraph">
+              There are no excuses for what happened. To humiliate you, my
+              princess, is a failure I never thought I would commit. I am
+              ashamed and truly embarrassed at myself for committing such
+              atrocities against you and the love you have towards me. I heard
+              what you said and it haunts me because I had become the person who
+              made my beautiful baby girl feel smol (thought about saying small
+              but couldn’t bring myself to do it, the ‘smol’ is too op, hope you
+              understand) in the worst way possible.
+            </p>
+
+            <p class="paragraph">
+              You are my Goddess, and a Goddess divine should only be
+              celebrated, uplifted and honoured. Instead I made you feel
+              insulted and less than. Though it was my intention but it doesn't
+              matter because my words still had the same impact on your soul.
+            </p>
+
+            <!-- Section: The Pain of my Action -->
+            <p class="paragraph"><strong>The Pain of my Action</strong></p>
+
+            <p class="paragraph">
+              Aditi you are the most intelligent person I know. Your mind is a
+              masterpiece, and your spirit is free. I could never do anything
+              that would influence you to do something without your will. To
+              think I used my words to diminish that brilliance makes me feel
+              disgusted. I cannot word the pain it causes me to think about what
+              I did and I deserve this suffering for causing you this indecency.
+              I know how much pride you take in your dignity and I trampled it.
+            </p>
+
+            <p class="paragraph">
+              I want to be clear that the way I acted was a reflection of my own
+              insecurities and my own lack of control and it had nothing to do
+              with you. You are pretty, you are sophisticated and you carry
+              yourself with a grace that I, the idiot of the occasion, didn’t
+              deserve in that moment. When I made you feel smol I wasn’t the man
+              who deserves a princess. I was too busy being an asshole who
+              doesn't deserve the pure love and passion you have toward me.
+            </p>
+
+            <!-- Section: Why You are my Goddess -->
+            <p class="paragraph"><strong>Why You are my Goddess</strong></p>
+
+            <p class="paragraph">
+              I call you my Goddess divine because you possess a light that most
+              people can only imagine.
+            </p>
+            <div class="paragraph" style="margin-left: 15px">
+              • You are beautiful all the time and especially when you are
+              confident.<br />
+              • You are amazing all the time again and especially when you talk
+              to me and adore me and love me.<br />
+              • You are soo soo much more intelligent than me in every aspect.
+              Like seriously all of them.
+            </div>
+
+            <p class="paragraph">
+              By insulting you and making you cry I tried to dim that light. I
+              am sorry for making you feel like you opened up too early. You are
+              my smol Girl but your presence should always feel Hugeeee. You
+              should always feel like you’re on a pedestal, because that's where
+              you belong.
+            </p>
+
+            <!-- Section: It will Never Happen again -->
+            <p class="paragraph"><strong>It will Never Happen again</strong></p>
+
+            <p class="paragraph">
+              I am making a solemn vow today. This is a wake up call I never
+              wanted, but one I clearly needed.
+            </p>
+
+            <p class="paragraph">
+              <strong>Protecting your dignity:</strong> My job is to be your
+              peace. I will spend every day from now on rebuilding the trust I
+              broke.
+            </p>
+
+            <p class="paragraph">
+              <strong>Mindful communism 🛠️:</strong> I know you value
+              communication so I will think before I speak (really embarrassing
+              for me to do that while claiming to be emotionally intelligent
+              maybe I am not as much, I assure you it won't happen again.) I
+              will filter my words through the lens of “Does this Honour my
+              goddess”.
+            </p>
+
+            <!-- Section: A plea for forgiveness -->
+            <p class="paragraph"><strong>A plea for forgiveness</strong></p>
+
+            <p class="paragraph">
+              Ayura, you are so pretty, so amazing, and so incredibly special to
+              me. I hate that I’ve forced you to be "strong" through my own
+              mistakes. I want you to be able to be your smol, soft self around
+              me again, knowing that you are safe and respected. And I would
+              like to spoil you and let you be a brat and do whatever you want.
+            </p>
+
+            <p class="paragraph">
+              I am sorry for the humiliation. I am sorry for the insults. I am
+              sorry for not being the man you deserve in that moment. Please, my
+              baby girl, give me the chance to show you that I can be the person
+              who protects your smile, not the one who steals it. I don't want
+              you to feel okay with the things of past and the things that made
+              you feel humiliated I do not want to contribute to it either. I
+              would do anything that you want Aditi anything even kiss your feet
+              or get on my knees or anything that you want just please I don't
+              want to lose you and want to be with you 🥹.
+            </p>
+
+            <p class="paragraph">
+              You are, and always will be, my goddess divine.
+            </p>
+
+            <!-- Signature -->
+            <p class="signature">
+              Your baby boy that loves you a million miles,<br />Athang….
+            </p>
+            <img src="./cat.jpg" alt="mafii dedo" />
+          </div>
+        </div>
+      </div>
+      <div class="flap top"></div>
+      <div class="seal" id="seal">
+        <i class="fas fa-heart"></i>
+      </div>
+      <div class="instruction">Click the seal to open</div>
+    </div>
+
+    <script>
+      const envelope = document.getElementById("envelope");
+      const letter = document.getElementById("letter");
+      const paragraphs = document.querySelectorAll(".paragraph");
+      const signature = document.querySelector(".signature");
+      const instruction = document.querySelector(".instruction");
+      let isOpen = false;
+
+      envelope.addEventListener("click", () => {
+        if (isOpen) return;
+        isOpen = true;
+
+        // 1. Open Flap
+        envelope.classList.add("open");
+        instruction.style.opacity = "0";
+
+        // 2. Slide Letter Out (Wait for flap)
+        setTimeout(() => {
+          letter.classList.add("pulled");
+          letter.style.zIndex = 10;
+        }, 800);
+
+        // 3. Expand Letter to Read Mode
+        setTimeout(() => {
+          letter.classList.add("read-mode");
+        }, 1800);
+
+        // 4. Reveal Text Sequentially
+        // Reduced initial delay slightly to feel more responsive
+        let delay = 500;
+        paragraphs.forEach((p) => {
+          setTimeout(() => {
+            p.classList.add("visible");
+            // Auto-scroll logic if text goes off screen
+            if (letter.classList.contains("read-mode")) {
+              p.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+          }, delay);
+
+          // Adjusted reading speed for longer text (faster than before)
+          // 20ms per character + 300ms pause between blocks
+          delay += p.innerText.length * 20 + 300;
+        });
+
+        // 5. Signature
+        setTimeout(() => {
+          signature.classList.add("visible");
+          signature.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, delay);
+      });
+
+      function resetLetter() {
+        location.reload();
+      }
+    </script>
+  </body>
+</html>
